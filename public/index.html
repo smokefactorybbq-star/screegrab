@@ -45,35 +45,40 @@
       </div>
       <div class="right">
         <div class="badge" id="status">Connecting…</div>
-        <button id="soundBtn">Enable music</button>
+        <button id="soundBtn">Enable alarm</button>
       </div>
     </header>
 
     <div class="grid" id="list"></div>
 
-    <!-- ВАЖНО: без loop, потому что мы делаем паузу 30 секунд вручную -->
-    <audio id="bgm" src="bgm.mp3" preload="auto"></audio>
+    <!-- Твой звуковой файл. Положи его в public/ALARM.wav -->
+    <audio id="alarm" src="ALARM.wav" preload="auto"></audio>
   </div>
 
 <script>
-  // ВСТАВЬ СЮДА URL ИЗ Apps Script
-  const API_URL = "https://script.google.com/macros/s/AKfycbyf-GYWO5V4nVKiZ9fcTdIghPzsUIPKKRei24mgbElX2JTeeC-lw_bxzl3rGTj7G5ih/exec";
+  // ✅ если ты используешь прокси на Railway, оставь так:
+  const API_URL = "/api/orders";
+  // ❗ если прокси нет, тогда поставь Apps Script URL:
+  // const API_URL = "https://script.google.com/macros/s/XXXXX/exec";
 
   const POLL_MS = 4000;
   const TICK_MS = 250;
 
-  // Музыка: пауза 30 секунд после окончания
-  const PAUSE_AFTER_SONG_MS = 30000;
+  // 🔊 Пауза 30 секунд после окончания и перед новым стартом
+  const PAUSE_AFTER_ALARM_MS = 30000;
 
   const elList = document.getElementById("list");
   const elUpdated = document.getElementById("updated");
   const elStatus = document.getElementById("status");
-  const bgm = document.getElementById("bgm");
+  const alarm = document.getElementById("alarm");
   const soundBtn = document.getElementById("soundBtn");
 
   let latestData = { orders: [], updated_at: 0 };
 
-  let musicEnabled = false;
+  // Состояние "разрешён ли звук" (после клика)
+  let alarmEnabled = false;
+
+  // Таймер перезапуска
   let restartTimer = null;
 
   function clearRestartTimer() {
@@ -83,35 +88,51 @@
     }
   }
 
-  // Когда трек закончился — ждём 30 секунд и запускаем снова
-  bgm.addEventListener("ended", () => {
-    if (!musicEnabled) return;
+  // Запуск звука (без loop — сами управляем циклом)
+  function playAlarmFromStart() {
+    if (!alarmEnabled) return;
+    clearRestartTimer();
+
+    try {
+      alarm.pause();
+      alarm.currentTime = 0;
+    } catch (e) {}
+
+    alarm.play().catch(() => {
+      // если браузер вдруг снова блокирует — пользователь нажмёт кнопку
+    });
+  }
+
+  // Когда звук закончился — ждём 30 сек и снова запускаем
+  alarm.addEventListener("ended", () => {
+    if (!alarmEnabled) return;
     clearRestartTimer();
     restartTimer = setTimeout(() => {
-      bgm.currentTime = 0;
-      bgm.play().catch(() => {});
-    }, PAUSE_AFTER_SONG_MS);
+      playAlarmFromStart();
+    }, PAUSE_AFTER_ALARM_MS);
   });
 
-  // Если трек не может проиграться/ошибка — попробуем позже
-  bgm.addEventListener("error", () => {
-    // Оставим кнопку для повторного нажатия, но и мягко попробуем перезапуск
-    if (!musicEnabled) return;
+  // Если файл не проигрывается/ошибка — попробуем перезапуск
+  alarm.addEventListener("error", () => {
+    if (!alarmEnabled) return;
     clearRestartTimer();
     restartTimer = setTimeout(() => {
-      bgm.currentTime = 0;
-      bgm.play().catch(() => {});
+      playAlarmFromStart();
     }, 5000);
   });
 
-  // Кнопка включения музыки (нужна из-за блокировки autoplay)
+  // Кнопка включения — нужна из-за запрета autoplay
   soundBtn.addEventListener("click", async () => {
     try {
-      musicEnabled = true;
+      alarmEnabled = true;
+      soundBtn.textContent = "Alarm enabled ✓";
+
+      // Делаем задержку 30 секунд ПЕРЕД первым запуском (как ты попросил)
       clearRestartTimer();
-      bgm.currentTime = 0;
-      await bgm.play();
-      soundBtn.textContent = "Music enabled ✓";
+      restartTimer = setTimeout(() => {
+        playAlarmFromStart();
+      }, PAUSE_AFTER_ALARM_MS);
+
     } catch (e) {
       soundBtn.textContent = "Sound blocked (tap again)";
     }
@@ -144,14 +165,14 @@
       const isReady = rem <= 0;
       const timeText = isReady ? "READY" : fmtMMSS(rem);
 
-      // ===== ЛОГИКА ЦВЕТОВ ПО ТВОИМ ПРАВИЛАМ =====
+      // ===== ЛОГИКА ЦВЕТОВ =====
       // 40–10 минут: оранжевый
       // 10–0 минут: зелёный
       // READY: ярко-зелёный
       let color = "var(--orange)";
       if (rem <= 600 && rem > 0) color = "var(--green)";
       if (rem <= 0) color = "var(--ready)";
-      // =========================================
+      // =========================
 
       return `
         <div class="row ${isReady ? "ready" : ""}">
