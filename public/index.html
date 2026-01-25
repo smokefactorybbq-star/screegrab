@@ -1,1 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kitchen Screen</title>
+  <style>
+    :root { --bg:#0b1220; --card:#121a2b; --text:#e9eefc; --muted:#9aa7c7; --ok:#22c55e; --warn:#f59e0b; --ready:#ef4444; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{font-size:28px;margin:0}
+    .right{display:flex;gap:12px;align-items:center}
+    .badge{background:rgba(255,255,255,.08);padding:8px 12px;border-radius:12px;color:var(--muted);font-size:14px}
+    button{cursor:pointer;border:0;border-radius:14px;padding:10px 14px;background:rgba(255,255,255,.12);color:var(--text);font-weight:700}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    .row{display:grid;grid-template-columns: 1.2fr .8fr;gap:12px;align-items:center;background:var(--card);border-radius:18px;padding:18px}
+    .order{font-size:34px;font-weight:900}
+    .time{font-size:34px;font-weight:900;text-align:right}
+    .sub{color:var(--muted);font-size:14px;margin-top:6px}
+    .ready{outline:2px solid rgba(239,68,68,.6); animation: pulse 1s infinite;}
+    @keyframes pulse { 0%{box-shadow:0 0 0 rgba(239,68,68,.0)} 50%{box-shadow:0 0 22px rgba(239,68,68,.35)} 100%{box-shadow:0 0 0 rgba(239,68,68,.0)} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Orders</h1>
+        <div class="sub" id="updated">—</div>
+      </div>
+      <div class="right">
+        <div class="badge" id="status">Connecting…</div>
+        <button id="soundBtn">Enable music</button>
+      </div>
+    </header>
+
+    <div class="grid" id="list"></div>
+
+    <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
+  </div>
+
+<script>
+  // Railway подставит переменную окружения как строку через замену ниже
+  // Мы сделаем так: сервер отдаёт index.html как есть, а URL зададим прямо в коде вручную,
+  // поэтому тут просто вставь URL. (проще всего)
+  const API_URL = "https://script.google.com/macros/s/AKfycbyf-GYWO5V4nVKiZ9fcTdIghPzsUIPKKRei24mgbElX2JTeeC-lw_bxzl3rGTj7G5ih/exec";
+
+  const POLL_MS = 4000;
+  const TICK_MS = 250;
+
+  const elList = document.getElementById("list");
+  const elUpdated = document.getElementById("updated");
+  const elStatus = document.getElementById("status");
+  const bgm = document.getElementById("bgm");
+  const soundBtn = document.getElementById("soundBtn");
+
+  let latestData = { orders: [], updated_at: 0 };
+
+  soundBtn.addEventListener("click", async () => {
+    try {
+      await bgm.play();
+      soundBtn.textContent = "Music enabled ✓";
+    } catch (e) {
+      soundBtn.textContent = "Sound blocked (tap again)";
+    }
+  });
+
+  function fmtMMSS(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function remainingSec(o, nowMs) {
+    const endMs = o.start_ts + o.minutes * 60000;
+    return (endMs - nowMs) / 1000;
+  }
+
+  function render() {
+    const now = Date.now();
+    const orders = latestData.orders || [];
+    elUpdated.textContent = "Updated: " + new Date(latestData.updated_at || now).toLocaleString();
+
+    if (!orders.length) {
+      elList.innerHTML = `<div class="row"><div><div class="order">—</div><div class="sub">Нет активных заказов</div></div><div class="time"></div></div>`;
+      return;
+    }
+
+    elList.innerHTML = orders.map(o => {
+      const rem = remainingSec(o, now);
+      const isReady = rem <= 0;
+      const timeText = isReady ? "READY" : fmtMMSS(rem);
+      const color = isReady ? "var(--ready)" : (rem < 300 ? "var(--warn)" : "var(--ok)");
+      return `
+        <div class="row ${isReady ? "ready" : ""}">
+          <div>
+            <div class="order">Order ${o.order}</div>
+            <div class="sub">${o.minutes} min</div>
+          </div>
+          <div class="time" style="color:${color}">${timeText}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function poll() {
+    try {
+      elStatus.textContent = "Loading…";
+      const r = await fetch(API_URL, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      latestData = await r.json();
+      elStatus.textContent = "Online";
+      render();
+    } catch (e) {
+      elStatus.textContent = "Offline / API error";
+    }
+  }
+
+  poll();
+  setInterval(poll, POLL_MS);
+  setInterval(render, TICK_MS);
+</script>
+</body>
+</html>
 
