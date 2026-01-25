@@ -10,7 +10,6 @@
       --card:#121a2b; 
       --text:#ffffff; 
       --muted:#9aa7c7; 
-
       --orange:#ff9900;   /* 40–10 минут */
       --green:#00ff66;    /* 10–0 минут */
       --ready:#00ff00;    /* READY ярко-зелёный */
@@ -22,7 +21,7 @@
     h1{font-size:28px;margin:0}
     .right{display:flex;gap:12px;align-items:center}
     .badge{background:rgba(255,255,255,.08);padding:8px 12px;border-radius:12px;color:var(--muted);font-size:14px}
-    button{cursor:pointer;border:0;border-radius:14px;padding:10px 14px;background:rgba(255,255,255,.12);color:var(--text);font-weight:700}
+    button{cursor:pointer;border:0;border-radius:14px;padding:10px 14px;background:rgba(255,255,255,.12);color:var(--text);font-weight:800}
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
     .row{display:grid;grid-template-columns: 1.2fr .8fr;gap:12px;align-items:center;background:var(--card);border-radius:18px;padding:18px}
     .order{font-size:34px;font-weight:900}
@@ -51,20 +50,18 @@
 
     <div class="grid" id="list"></div>
 
-    <!-- Твой звуковой файл. Положи его в public/ALARM.wav -->
+    <!-- Положи файл public/ALARM.wav -->
     <audio id="alarm" src="ALARM.wav" preload="auto"></audio>
   </div>
 
 <script>
-  // ✅ если ты используешь прокси на Railway, оставь так:
+  // ✅ Рабочий вариант для Railway (через серверный прокси)
   const API_URL = "/api/orders";
-  // ❗ если прокси нет, тогда поставь Apps Script URL:
-  // const API_URL = "https://script.google.com/macros/s/AKfycbyf-GYWO5V4nVKiZ9fcTdIghPzsUIPKKRei24mgbElX2JTeeC-lw_bxzl3rGTj7G5ih/exec";
 
   const POLL_MS = 4000;
   const TICK_MS = 250;
 
-  // 🔊 Пауза 30 секунд после окончания и перед новым стартом
+  // 🔊 Пауза 30 секунд после окончания и перед началом
   const PAUSE_AFTER_ALARM_MS = 30000;
 
   const elList = document.getElementById("list");
@@ -75,64 +72,47 @@
 
   let latestData = { orders: [], updated_at: 0 };
 
-  // Состояние "разрешён ли звук" (после клика)
   let alarmEnabled = false;
-
-  // Таймер перезапуска
   let restartTimer = null;
 
   function clearRestartTimer() {
-    if (restartTimer) {
-      clearTimeout(restartTimer);
-      restartTimer = null;
-    }
+    if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
   }
 
-  // Запуск звука (без loop — сами управляем циклом)
   function playAlarmFromStart() {
     if (!alarmEnabled) return;
     clearRestartTimer();
 
-    try {
-      alarm.pause();
-      alarm.currentTime = 0;
-    } catch (e) {}
+    try { alarm.pause(); alarm.currentTime = 0; } catch(e) {}
 
     alarm.play().catch(() => {
-      // если браузер вдруг снова блокирует — пользователь нажмёт кнопку
+      // если браузер блокирует — нужно снова нажать кнопку Enable alarm
     });
   }
 
-  // Когда звук закончился — ждём 30 сек и снова запускаем
+  // По окончании — ждём 30 сек и стартуем снова
   alarm.addEventListener("ended", () => {
     if (!alarmEnabled) return;
     clearRestartTimer();
-    restartTimer = setTimeout(() => {
-      playAlarmFromStart();
-    }, PAUSE_AFTER_ALARM_MS);
+    restartTimer = setTimeout(() => playAlarmFromStart(), PAUSE_AFTER_ALARM_MS);
   });
 
-  // Если файл не проигрывается/ошибка — попробуем перезапуск
+  // Если файл не загрузился — попробуем позже (и покажем в консоли)
   alarm.addEventListener("error", () => {
     if (!alarmEnabled) return;
     clearRestartTimer();
-    restartTimer = setTimeout(() => {
-      playAlarmFromStart();
-    }, 5000);
+    restartTimer = setTimeout(() => playAlarmFromStart(), 5000);
   });
 
-  // Кнопка включения — нужна из-за запрета autoplay
+  // Кнопка включения (обязательна из-за запрета autoplay)
   soundBtn.addEventListener("click", async () => {
     try {
       alarmEnabled = true;
       soundBtn.textContent = "Alarm enabled ✓";
 
-      // Делаем задержку 30 секунд ПЕРЕД первым запуском (как ты попросил)
+      // пауза 30 сек ПЕРЕД первым запуском
       clearRestartTimer();
-      restartTimer = setTimeout(() => {
-        playAlarmFromStart();
-      }, PAUSE_AFTER_ALARM_MS);
-
+      restartTimer = setTimeout(() => playAlarmFromStart(), PAUSE_AFTER_ALARM_MS);
     } catch (e) {
       soundBtn.textContent = "Sound blocked (tap again)";
     }
@@ -156,7 +136,11 @@
     elUpdated.textContent = "Updated: " + new Date(latestData.updated_at || now).toLocaleString();
 
     if (!orders.length) {
-      elList.innerHTML = `<div class="row"><div><div class="order">—</div><div class="sub">Нет активных заказов</div></div><div class="time"></div></div>`;
+      elList.innerHTML =
+        `<div class="row">
+          <div><div class="order">—</div><div class="sub">Нет активных заказов</div></div>
+          <div class="time"></div>
+        </div>`;
       return;
     }
 
@@ -165,14 +149,13 @@
       const isReady = rem <= 0;
       const timeText = isReady ? "READY" : fmtMMSS(rem);
 
-      // ===== ЛОГИКА ЦВЕТОВ =====
+      // Цвета по твоим правилам:
       // 40–10 минут: оранжевый
       // 10–0 минут: зелёный
       // READY: ярко-зелёный
       let color = "var(--orange)";
       if (rem <= 600 && rem > 0) color = "var(--green)";
       if (rem <= 0) color = "var(--ready)";
-      // =========================
 
       return `
         <div class="row ${isReady ? "ready" : ""}">
@@ -190,12 +173,20 @@
     try {
       elStatus.textContent = "Loading…";
       const r = await fetch(API_URL, { cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      latestData = await r.json();
+      const text = await r.text();
+
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0,120)}`);
+
+      // если вдруг сервер вернул ошибку JSON
+      const data = JSON.parse(text);
+      latestData = data;
+
       elStatus.textContent = "Online";
       render();
     } catch (e) {
       elStatus.textContent = "Offline / API error";
+      // можно раскомментировать для дебага:
+      // console.log("API error:", e);
     }
   }
 
@@ -205,4 +196,3 @@
 </script>
 </body>
 </html>
-
