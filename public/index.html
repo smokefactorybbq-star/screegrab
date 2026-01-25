@@ -51,15 +51,19 @@
 
     <div class="grid" id="list"></div>
 
-    <audio id="bgm" src="ALARM.wav" loop preload="auto"></audio>
+    <!-- ВАЖНО: без loop, потому что мы делаем паузу 30 секунд вручную -->
+    <audio id="bgm" src="bgm.mp3" preload="auto"></audio>
   </div>
 
 <script>
   // ВСТАВЬ СЮДА URL ИЗ Apps Script
-  const API_URL = "https://script.google.com/macros/s/AKfycbyf-GYWO5V4nVKiZ9fcTdIghPzsUIPKKRei24mgbElX2JTeeC-lw_bxzl3rGTj7G5ih/exec";
+  const API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
 
   const POLL_MS = 4000;
   const TICK_MS = 250;
+
+  // Музыка: пауза 30 секунд после окончания
+  const PAUSE_AFTER_SONG_MS = 30000;
 
   const elList = document.getElementById("list");
   const elUpdated = document.getElementById("updated");
@@ -69,8 +73,43 @@
 
   let latestData = { orders: [], updated_at: 0 };
 
+  let musicEnabled = false;
+  let restartTimer = null;
+
+  function clearRestartTimer() {
+    if (restartTimer) {
+      clearTimeout(restartTimer);
+      restartTimer = null;
+    }
+  }
+
+  // Когда трек закончился — ждём 30 секунд и запускаем снова
+  bgm.addEventListener("ended", () => {
+    if (!musicEnabled) return;
+    clearRestartTimer();
+    restartTimer = setTimeout(() => {
+      bgm.currentTime = 0;
+      bgm.play().catch(() => {});
+    }, PAUSE_AFTER_SONG_MS);
+  });
+
+  // Если трек не может проиграться/ошибка — попробуем позже
+  bgm.addEventListener("error", () => {
+    // Оставим кнопку для повторного нажатия, но и мягко попробуем перезапуск
+    if (!musicEnabled) return;
+    clearRestartTimer();
+    restartTimer = setTimeout(() => {
+      bgm.currentTime = 0;
+      bgm.play().catch(() => {});
+    }, 5000);
+  });
+
+  // Кнопка включения музыки (нужна из-за блокировки autoplay)
   soundBtn.addEventListener("click", async () => {
     try {
+      musicEnabled = true;
+      clearRestartTimer();
+      bgm.currentTime = 0;
       await bgm.play();
       soundBtn.textContent = "Music enabled ✓";
     } catch (e) {
@@ -106,17 +145,12 @@
       const timeText = isReady ? "READY" : fmtMMSS(rem);
 
       // ===== ЛОГИКА ЦВЕТОВ ПО ТВОИМ ПРАВИЛАМ =====
-      let color = "var(--orange)"; // 40–10 минут
-
-      if (rem <= 600 && rem > 0) {
-        // 10–0 минут
-        color = "var(--green)";
-      }
-
-      if (rem <= 0) {
-        // READY
-        color = "var(--ready)";
-      }
+      // 40–10 минут: оранжевый
+      // 10–0 минут: зелёный
+      // READY: ярко-зелёный
+      let color = "var(--orange)";
+      if (rem <= 600 && rem > 0) color = "var(--green)";
+      if (rem <= 0) color = "var(--ready)";
       // =========================================
 
       return `
