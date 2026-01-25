@@ -5,7 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Kitchen Screen</title>
   <style>
-    :root { --bg:#0b1220; --card:#121a2b; --text:#e9eefc; --muted:#9aa7c7; --ok:#22c55e; --warn:#f59e0b; --ready:#ef4444; }
+    :root { 
+      --bg:#0b1220; 
+      --card:#121a2b; 
+      --text:#ffffff; 
+      --muted:#9aa7c7; 
+
+      --orange:#ff9900;   /* 40–10 минут */
+      --green:#00ff66;    /* 10–0 минут */
+      --ready:#00ff00;    /* READY ярко-зелёный */
+    }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     .wrap{max-width:1200px;margin:0 auto;padding:24px}
@@ -19,8 +28,12 @@
     .order{font-size:34px;font-weight:900}
     .time{font-size:34px;font-weight:900;text-align:right}
     .sub{color:var(--muted);font-size:14px;margin-top:6px}
-    .ready{outline:2px solid rgba(239,68,68,.6); animation: pulse 1s infinite;}
-    @keyframes pulse { 0%{box-shadow:0 0 0 rgba(239,68,68,.0)} 50%{box-shadow:0 0 22px rgba(239,68,68,.35)} 100%{box-shadow:0 0 0 rgba(239,68,68,.0)} }
+    .ready{outline:3px solid rgba(0,255,0,.8); animation: pulse 1s infinite;}
+    @keyframes pulse { 
+      0%{box-shadow:0 0 0 rgba(0,255,0,.0)} 
+      50%{box-shadow:0 0 30px rgba(0,255,0,.6)} 
+      100%{box-shadow:0 0 0 rgba(0,255,0,.0)} 
+    }
   </style>
 </head>
 <body>
@@ -42,10 +55,8 @@
   </div>
 
 <script>
-  // Railway подставит переменную окружения как строку через замену ниже
-  // Мы сделаем так: сервер отдаёт index.html как есть, а URL зададим прямо в коде вручную,
-  // поэтому тут просто вставь URL. (проще всего)
-  const API_URL = "https://script.google.com/macros/s/AKfycbyf-GYWO5V4nVKiZ9fcTdIghPzsUIPKKRei24mgbElX2JTeeC-lw_bxzl3rGTj7G5ih/exec";
+  // ВСТАВЬ СЮДА URL ИЗ Apps Script
+  const API_URL = "https://script.google.com/macros/library/d/1IFnioB9gtAsCNFfn-crUVk_wEsVvhikhi1uCZswY562xe8k8XMTB9k_K/1";
 
   const POLL_MS = 4000;
   const TICK_MS = 250;
@@ -93,7 +104,21 @@
       const rem = remainingSec(o, now);
       const isReady = rem <= 0;
       const timeText = isReady ? "READY" : fmtMMSS(rem);
-      const color = isReady ? "var(--ready)" : (rem < 300 ? "var(--warn)" : "var(--ok)");
+
+      // ===== ЛОГИКА ЦВЕТОВ ПО ТВОИМ ПРАВИЛАМ =====
+      let color = "var(--orange)"; // 40–10 минут
+
+      if (rem <= 600 && rem > 0) {
+        // 10–0 минут
+        color = "var(--green)";
+      }
+
+      if (rem <= 0) {
+        // READY
+        color = "var(--ready)";
+      }
+      // =========================================
+
       return `
         <div class="row ${isReady ? "ready" : ""}">
           <div>
