@@ -2,8 +2,8 @@
   "name": "kitchen-screen",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
   "type": "commonjs",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
@@ -11,4 +11,3 @@
     "express": "^4.19.2"
   }
 }
-
