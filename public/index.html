@@ -13,9 +13,17 @@
       --orange:#ff9900;   /* 40–10 минут */
       --green:#00ff66;    /* 10–0 минут */
       --ready:#00ff00;    /* READY ярко-зелёный */
+      --ticker-bg:#020617;
+      --ticker-text:#ffffff;
     }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      padding-bottom:64px; /* место под бегущую строку */
+    }
     .wrap{max-width:1200px;margin:0 auto;padding:24px}
     header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
     h1{font-size:28px;margin:0}
@@ -33,6 +41,42 @@
       50%{box-shadow:0 0 30px rgba(0,255,0,.6)} 
       100%{box-shadow:0 0 0 rgba(0,255,0,.0)} 
     }
+
+    /* ===== БЕГУЩАЯ СТРОКА ===== */
+    .ticker {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 56px;
+      background: var(--ticker-bg);
+      border-top: 2px solid rgba(255,255,255,.1);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .ticker-track {
+      display: inline-block;
+      white-space: nowrap;
+      padding-left: 100%;
+      animation: ticker-move 30s linear infinite;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--ticker-text);
+    }
+
+    .ticker-text {
+      display: inline-block;
+      padding-right: 80px;
+    }
+
+    @keyframes ticker-move {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+    /* ========================== */
   </style>
 </head>
 <body>
@@ -50,18 +94,32 @@
 
     <div class="grid" id="list"></div>
 
-    <!-- Положи файл public/ALARM.wav -->
+    <!-- Звук -->
     <audio id="alarm" src="ALARM.mp3" preload="auto"></audio>
   </div>
 
+  <!-- ===== БЕГУЩАЯ СТРОКА ВНИЗУ ===== -->
+  <div class="ticker">
+    <div class="ticker-track">
+      <span class="ticker-text">
+        เรียนไรเดอร์ทุกท่าน! ขณะนี้เรากำลังเตรียมออเดอร์ของท่านอยู่ โดยสามารถดูเวลาการเตรียมอาหารได้ที่หน้าจอ 
+        เมื่อออเดอร์พร้อมแล้ว พนักงานของเราจะนำออเดอร์ไปส่งให้ท่านทันที 
+        ขอขอบคุณที่ช่วยให้การจัดส่งเป็นไปอย่างรวดเร็วและมีคุณภาพ!
+      </span>
+      <span class="ticker-text">
+        เรียนไรเดอร์ทุกท่าน! ขณะนี้เรากำลังเตรียมออเดอร์ของท่านอยู่ โดยสามารถดูเวลาการเตรียมอาหารได้ที่หน้าจอ 
+        เมื่อออเดอร์พร้อมแล้ว พนักงานของเราจะนำออเดอร์ไปส่งให้ท่านทันที 
+        ขอขอบคุณที่ช่วยให้การจัดส่งเป็นไปอย่างรวดเร็วและมีคุณภาพ!
+      </span>
+    </div>
+  </div>
+  <!-- ================================= -->
+
 <script>
-  // ✅ Рабочий вариант для Railway (через серверный прокси)
   const API_URL = "/api/orders";
 
   const POLL_MS = 4000;
   const TICK_MS = 250;
-
-  // 🔊 Пауза 30 секунд после окончания и перед началом
   const PAUSE_AFTER_ALARM_MS = 30000;
 
   const elList = document.getElementById("list");
@@ -71,7 +129,6 @@
   const soundBtn = document.getElementById("soundBtn");
 
   let latestData = { orders: [], updated_at: 0 };
-
   let alarmEnabled = false;
   let restartTimer = null;
 
@@ -82,39 +139,24 @@
   function playAlarmFromStart() {
     if (!alarmEnabled) return;
     clearRestartTimer();
-
     try { alarm.pause(); alarm.currentTime = 0; } catch(e) {}
-
-    alarm.play().catch(() => {
-      // если браузер блокирует — нужно снова нажать кнопку Enable alarm
-    });
+    alarm.play().catch(()=>{});
   }
 
-  // По окончании — ждём 30 сек и стартуем снова
   alarm.addEventListener("ended", () => {
     if (!alarmEnabled) return;
     clearRestartTimer();
     restartTimer = setTimeout(() => playAlarmFromStart(), PAUSE_AFTER_ALARM_MS);
   });
 
-  // Если файл не загрузился — попробуем позже (и покажем в консоли)
-  alarm.addEventListener("error", () => {
-    if (!alarmEnabled) return;
-    clearRestartTimer();
-    restartTimer = setTimeout(() => playAlarmFromStart(), 5000);
-  });
-
-  // Кнопка включения (обязательна из-за запрета autoplay)
   soundBtn.addEventListener("click", async () => {
     try {
       alarmEnabled = true;
       soundBtn.textContent = "Alarm enabled ✓";
-
-      // пауза 30 сек ПЕРЕД первым запуском
       clearRestartTimer();
       restartTimer = setTimeout(() => playAlarmFromStart(), PAUSE_AFTER_ALARM_MS);
     } catch (e) {
-      soundBtn.textContent = "Sound blocked (tap again)";
+      soundBtn.textContent = "Sound error";
     }
   });
 
@@ -136,8 +178,8 @@
     elUpdated.textContent = "Updated: " + new Date(latestData.updated_at || now).toLocaleString();
 
     if (!orders.length) {
-      elList.innerHTML =
-        `<div class="row">
+      elList.innerHTML = `
+        <div class="row">
           <div><div class="order">—</div><div class="sub">Нет активных заказов</div></div>
           <div class="time"></div>
         </div>`;
@@ -149,10 +191,6 @@
       const isReady = rem <= 0;
       const timeText = isReady ? "READY" : fmtMMSS(rem);
 
-      // Цвета по твоим правилам:
-      // 40–10 минут: оранжевый
-      // 10–0 минут: зелёный
-      // READY: ярко-зелёный
       let color = "var(--orange)";
       if (rem <= 600 && rem > 0) color = "var(--green)";
       if (rem <= 0) color = "var(--ready)";
@@ -173,20 +211,12 @@
     try {
       elStatus.textContent = "Loading…";
       const r = await fetch(API_URL, { cache: "no-store" });
-      const text = await r.text();
-
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0,120)}`);
-
-      // если вдруг сервер вернул ошибку JSON
-      const data = JSON.parse(text);
+      const data = await r.json();
       latestData = data;
-
       elStatus.textContent = "Online";
       render();
     } catch (e) {
       elStatus.textContent = "Offline / API error";
-      // можно раскомментировать для дебага:
-      // console.log("API error:", e);
     }
   }
 
