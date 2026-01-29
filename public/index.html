@@ -22,7 +22,7 @@
       background:var(--bg);
       color:var(--text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      padding-bottom:64px; /* место под бегущую строку */
+      padding-bottom:64px;
     }
     .wrap{max-width:1200px;margin:0 auto;padding:24px}
     header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
@@ -30,6 +30,7 @@
     .right{display:flex;gap:12px;align-items:center}
     .badge{background:rgba(255,255,255,.08);padding:8px 12px;border-radius:12px;color:var(--muted);font-size:14px}
     button{cursor:pointer;border:0;border-radius:14px;padding:10px 14px;background:rgba(255,255,255,.12);color:var(--text);font-weight:800}
+
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
     .row{display:grid;grid-template-columns: 1.2fr .8fr;gap:12px;align-items:center;background:var(--card);border-radius:18px;padding:18px}
     .order{font-size:34px;font-weight:900}
@@ -42,13 +43,30 @@
       100%{box-shadow:0 0 0 rgba(0,255,0,.0)} 
     }
 
+    /* ===== РЕЖИМ КАРТИНОК ===== */
+    .ads {
+      display:none;
+      width:100%;
+      height:calc(100vh - 140px);
+      align-items:center;
+      justify-content:center;
+    }
+
+    .ads img {
+      max-width:100%;
+      max-height:100%;
+      object-fit:contain;
+      border-radius:24px;
+      box-shadow:0 0 40px rgba(0,0,0,.4);
+    }
+
     /* ===== БЕГУЩАЯ СТРОКА ===== */
     .ticker {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      height: 140px;
+      height: 56px;
       background: var(--ticker-bg);
       border-top: 2px solid rgba(255,255,255,.1);
       overflow: hidden;
@@ -62,7 +80,7 @@
       white-space: nowrap;
       padding-left: 100%;
       animation: ticker-move 30s linear infinite;
-      font-size: 55px;
+      font-size: 22px;
       font-weight: 800;
       color: var(--ticker-text);
     }
@@ -76,7 +94,6 @@
       0% { transform: translateX(0); }
       100% { transform: translateX(-100%); }
     }
-    /* ========================== */
   </style>
 </head>
 <body>
@@ -92,13 +109,18 @@
       </div>
     </header>
 
+    <!-- ===== БЛОК КАРТИНОК (если нет заказов) ===== -->
+    <div class="ads" id="ads">
+      <img id="adsImg" src="ads1.jpg" alt="Ads">
+    </div>
+
+    <!-- ===== БЛОК ЗАКАЗОВ ===== -->
     <div class="grid" id="list"></div>
 
-    <!-- Звук -->
     <audio id="alarm" src="ALARM.mp3" preload="auto"></audio>
   </div>
 
-  <!-- ===== БЕГУЩАЯ СТРОКА ВНИЗУ ===== -->
+  <!-- ===== БЕГУЩАЯ СТРОКА ===== -->
   <div class="ticker">
     <div class="ticker-track">
       <span class="ticker-text">
@@ -113,52 +135,41 @@
       </span>
     </div>
   </div>
-  <!-- ================================= -->
 
 <script>
   const API_URL = "/api/orders";
 
   const POLL_MS = 4000;
   const TICK_MS = 250;
-  const PAUSE_AFTER_ALARM_MS = 30000;
 
-  const elList = document.getElementById("list");
+  // ===== КАРТИНКИ =====
+  const ADS_IMAGES = ["ads1.jpg", "ads2.jpg", "ads3.jpg"];
+  let adsIndex = 0;
+
+  const adsEl = document.getElementById("ads");
+  const adsImg = document.getElementById("adsImg");
+  const listEl = document.getElementById("list");
+
+  setInterval(() => {
+    adsIndex = (adsIndex + 1) % ADS_IMAGES.length;
+    adsImg.src = ADS_IMAGES[adsIndex];
+  }, 10000); // смена картинки каждые 10 сек
+
+  // ===== ЗАКАЗЫ =====
   const elUpdated = document.getElementById("updated");
   const elStatus = document.getElementById("status");
-  const alarm = document.getElementById("alarm");
-  const soundBtn = document.getElementById("soundBtn");
 
   let latestData = { orders: [], updated_at: 0 };
-  let alarmEnabled = false;
-  let restartTimer = null;
 
-  function clearRestartTimer() {
-    if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+  function showAds() {
+    adsEl.style.display = "flex";
+    listEl.style.display = "none";
   }
 
-  function playAlarmFromStart() {
-    if (!alarmEnabled) return;
-    clearRestartTimer();
-    try { alarm.pause(); alarm.currentTime = 0; } catch(e) {}
-    alarm.play().catch(()=>{});
+  function showOrders() {
+    adsEl.style.display = "none";
+    listEl.style.display = "grid";
   }
-
-  alarm.addEventListener("ended", () => {
-    if (!alarmEnabled) return;
-    clearRestartTimer();
-    restartTimer = setTimeout(() => playAlarmFromStart(), PAUSE_AFTER_ALARM_MS);
-  });
-
-  soundBtn.addEventListener("click", async () => {
-    try {
-      alarmEnabled = true;
-      soundBtn.textContent = "Alarm enabled ✓";
-      clearRestartTimer();
-      restartTimer = setTimeout(() => playAlarmFromStart(), PAUSE_AFTER_ALARM_MS);
-    } catch (e) {
-      soundBtn.textContent = "Sound error";
-    }
-  });
 
   function fmtMMSS(sec) {
     sec = Math.max(0, Math.floor(sec));
@@ -175,18 +186,20 @@
   function render() {
     const now = Date.now();
     const orders = latestData.orders || [];
+
     elUpdated.textContent = "Updated: " + new Date(latestData.updated_at || now).toLocaleString();
 
+    // ===== ЕСЛИ НЕТ ЗАКАЗОВ → КАРТИНКИ =====
     if (!orders.length) {
-      elList.innerHTML = `
-        <div class="row">
-          <div><div class="order">—</div><div class="sub">Нет активных заказов</div></div>
-          <div class="time"></div>
-        </div>`;
+      showAds();
+      listEl.innerHTML = "";
       return;
     }
 
-    elList.innerHTML = orders.map(o => {
+    // ===== ЕСЛИ ЕСТЬ ЗАКАЗЫ → ПОКАЗЫВАЕМ ИХ =====
+    showOrders();
+
+    listEl.innerHTML = orders.map(o => {
       const rem = remainingSec(o, now);
       const isReady = rem <= 0;
       const timeText = isReady ? "READY" : fmtMMSS(rem);
@@ -217,6 +230,7 @@
       render();
     } catch (e) {
       elStatus.textContent = "Offline / API error";
+      showAds(); // если оффлайн — тоже показываем картинки
     }
   }
 
