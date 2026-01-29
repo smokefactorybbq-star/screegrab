@@ -4,19 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Kitchen Screen</title>
+
   <style>
     :root { 
       --bg:#0b1220; 
       --card:#121a2b; 
       --text:#ffffff; 
       --muted:#9aa7c7; 
-      --orange:#ff9900;   /* 40–10 минут */
-      --green:#00ff66;    /* 10–0 минут */
-      --ready:#00ff00;    /* READY ярко-зелёный */
+      --orange:#ff9900;
+      --green:#00ff66;
+      --ready:#00ff00;
       --ticker-bg:#020617;
       --ticker-text:#ffffff;
     }
+
     *{box-sizing:border-box}
+
     body{
       margin:0;
       background:var(--bg);
@@ -24,27 +27,68 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
       padding-bottom:64px;
     }
+
     .wrap{max-width:1200px;margin:0 auto;padding:24px}
-    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+
+    header{
+      display:flex;
+      gap:16px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:16px
+    }
+
     h1{font-size:28px;margin:0}
+
     .right{display:flex;gap:12px;align-items:center}
-    .badge{background:rgba(255,255,255,.08);padding:8px 12px;border-radius:12px;color:var(--muted);font-size:14px}
-    button{cursor:pointer;border:0;border-radius:14px;padding:10px 14px;background:rgba(255,255,255,.12);color:var(--text);font-weight:800}
+
+    .badge{
+      background:rgba(255,255,255,.08);
+      padding:8px 12px;
+      border-radius:12px;
+      color:var(--muted);
+      font-size:14px
+    }
+
+    button{
+      cursor:pointer;
+      border:0;
+      border-radius:14px;
+      padding:10px 14px;
+      background:rgba(255,255,255,.12);
+      color:var(--text);
+      font-weight:800
+    }
 
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
-    .row{display:grid;grid-template-columns: 1.2fr .8fr;gap:12px;align-items:center;background:var(--card);border-radius:18px;padding:18px}
+
+    .row{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:12px;
+      align-items:center;
+      background:var(--card);
+      border-radius:18px;
+      padding:18px
+    }
+
     .order{font-size:34px;font-weight:900}
     .time{font-size:34px;font-weight:900;text-align:right}
     .sub{color:var(--muted);font-size:14px;margin-top:6px}
-    .ready{outline:3px solid rgba(0,255,0,.8); animation: pulse 1s infinite;}
+
+    .ready{
+      outline:3px solid rgba(0,255,0,.8);
+      animation: pulse 1s infinite;
+    }
+
     @keyframes pulse { 
       0%{box-shadow:0 0 0 rgba(0,255,0,.0)} 
       50%{box-shadow:0 0 30px rgba(0,255,0,.6)} 
       100%{box-shadow:0 0 0 rgba(0,255,0,.0)} 
     }
 
-    /* ===== РЕЖИМ КАРТИНОК ===== */
-    .ads {
+    /* ===== ADS ===== */
+    .ads{
       display:none;
       width:100%;
       height:calc(100vh - 140px);
@@ -52,7 +96,7 @@
       justify-content:center;
     }
 
-    .ads img {
+    .ads img{
       max-width:100%;
       max-height:100%;
       object-fit:contain;
@@ -60,8 +104,8 @@
       box-shadow:0 0 40px rgba(0,0,0,.4);
     }
 
-    /* ===== БЕГУЩАЯ СТРОКА ===== */
-    .ticker {
+    /* ===== TICKER ===== */
+    .ticker{
       position: fixed;
       left: 0;
       right: 0;
@@ -75,7 +119,7 @@
       z-index: 9999;
     }
 
-    .ticker-track {
+    .ticker-track{
       display: inline-block;
       white-space: nowrap;
       padding-left: 100%;
@@ -85,7 +129,7 @@
       color: var(--ticker-text);
     }
 
-    .ticker-text {
+    .ticker-text{
       display: inline-block;
       padding-right: 80px;
     }
@@ -96,6 +140,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <header>
@@ -109,18 +154,19 @@
       </div>
     </header>
 
-    <!-- ===== БЛОК КАРТИНОК (если нет заказов) ===== -->
+    <!-- ADS -->
     <div class="ads" id="ads">
       <img id="adsImg" src="ads1.jpg" alt="Ads">
     </div>
 
-    <!-- ===== БЛОК ЗАКАЗОВ ===== -->
+    <!-- ORDERS -->
     <div class="grid" id="list"></div>
 
+    <!-- SOUND -->
     <audio id="alarm" src="ALARM.mp3" preload="auto"></audio>
   </div>
 
-  <!-- ===== БЕГУЩАЯ СТРОКА ===== -->
+  <!-- TICKER -->
   <div class="ticker">
     <div class="ticker-track">
       <span class="ticker-text">
@@ -138,11 +184,10 @@
 
 <script>
   const API_URL = "/api/orders";
-
   const POLL_MS = 4000;
   const TICK_MS = 250;
 
-  // ===== КАРТИНКИ =====
+  // ===== ADS =====
   const ADS_IMAGES = ["ads1.jpg", "ads2.jpg", "ads3.jpg", "ads4.jpg"];
   let adsIndex = 0;
 
@@ -153,50 +198,98 @@
   setInterval(() => {
     adsIndex = (adsIndex + 1) % ADS_IMAGES.length;
     adsImg.src = ADS_IMAGES[adsIndex];
-  }, 10000); // смена картинки каждые 10 сек
+  }, 10000);
 
-  // ===== ЗАКАЗЫ =====
+  function showAds(){
+    adsEl.style.display = "flex";
+    listEl.style.display = "none";
+  }
+
+  function showOrders(){
+    adsEl.style.display = "none";
+    listEl.style.display = "grid";
+  }
+
+  // ===== SOUND =====
+  const PAUSE_AFTER_ALARM_MS = 30000;
+
+  const alarm = document.getElementById("alarm");
+  const soundBtn = document.getElementById("soundBtn");
+
+  let alarmEnabled = false;
+  let restartTimer = null;
+
+  function clearRestartTimer(){
+    if (restartTimer){
+      clearTimeout(restartTimer);
+      restartTimer = null;
+    }
+  }
+
+  function playAlarmFromStart(){
+    if (!alarmEnabled) return;
+    clearRestartTimer();
+    try { alarm.pause(); alarm.currentTime = 0; } catch(e){}
+    alarm.play().catch(err => console.log("Alarm play error:", err));
+  }
+
+  alarm.addEventListener("ended", () => {
+    if (!alarmEnabled) return;
+    clearRestartTimer();
+    restartTimer = setTimeout(playAlarmFromStart, PAUSE_AFTER_ALARM_MS);
+  });
+
+  soundBtn.addEventListener("click", async () => {
+    try {
+      alarmEnabled = true;
+      soundBtn.textContent = "Alarm enabled ✓";
+
+      // пробиваем разрешение звука
+      alarm.currentTime = 0;
+      await alarm.play();
+      alarm.pause();
+      alarm.currentTime = 0;
+
+      // стартуем через 30 секунд
+      clearRestartTimer();
+      restartTimer = setTimeout(playAlarmFromStart, PAUSE_AFTER_ALARM_MS);
+
+    } catch (e) {
+      console.log("Enable alarm failed:", e);
+      soundBtn.textContent = "Sound blocked / file error";
+    }
+  });
+
+  // ===== ORDERS =====
   const elUpdated = document.getElementById("updated");
   const elStatus = document.getElementById("status");
 
   let latestData = { orders: [], updated_at: 0 };
 
-  function showAds() {
-    adsEl.style.display = "flex";
-    listEl.style.display = "none";
-  }
-
-  function showOrders() {
-    adsEl.style.display = "none";
-    listEl.style.display = "grid";
-  }
-
-  function fmtMMSS(sec) {
+  function fmtMMSS(sec){
     sec = Math.max(0, Math.floor(sec));
     const m = Math.floor(sec / 60);
     const s = sec % 60;
-    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
   }
 
-  function remainingSec(o, nowMs) {
+  function remainingSec(o, nowMs){
     const endMs = o.start_ts + o.minutes * 60000;
     return (endMs - nowMs) / 1000;
   }
 
-  function render() {
+  function render(){
     const now = Date.now();
     const orders = latestData.orders || [];
 
     elUpdated.textContent = "Updated: " + new Date(latestData.updated_at || now).toLocaleString();
 
-    // ===== ЕСЛИ НЕТ ЗАКАЗОВ → КАРТИНКИ =====
-    if (!orders.length) {
+    if (!orders.length){
       showAds();
       listEl.innerHTML = "";
       return;
     }
 
-    // ===== ЕСЛИ ЕСТЬ ЗАКАЗЫ → ПОКАЗЫВАЕМ ИХ =====
     showOrders();
 
     listEl.innerHTML = orders.map(o => {
@@ -220,17 +313,17 @@
     }).join("");
   }
 
-  async function poll() {
+  async function poll(){
     try {
       elStatus.textContent = "Loading…";
-      const r = await fetch(API_URL, { cache: "no-store" });
+      const r = await fetch(API_URL, { cache:"no-store" });
       const data = await r.json();
       latestData = data;
       elStatus.textContent = "Online";
       render();
-    } catch (e) {
+    } catch(e){
       elStatus.textContent = "Offline / API error";
-      showAds(); // если оффлайн — тоже показываем картинки
+      showAds();
     }
   }
 
@@ -240,3 +333,4 @@
 </script>
 </body>
 </html>
+
