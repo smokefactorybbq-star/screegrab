@@ -15,49 +15,31 @@ app.use(express.static(path.join(__dirname, "public"), {
   }
 }));
 
-app.get("/health", (_req, res) => {
-  res.status(200).send("ok");
-});
+app.get("/health", (_req, res) => res.status(200).send("ok"));
 
 app.get("/api/orders", async (_req, res) => {
   try {
     if (!APPS_SCRIPT_URL) {
-      return res.status(500).json({
-        error: "APPS_SCRIPT_URL is not set"
-      });
+      return res.status(500).json({ error: "APPS_SCRIPT_URL is not set" });
     }
 
-    const r = await fetch(APPS_SCRIPT_URL, {
-      cache: "no-store"
-    });
-
+    const r = await fetch(APPS_SCRIPT_URL, { cache: "no-store" });
     const text = await r.text();
 
     if (!r.ok) {
       return res.status(502).json({
-        error: "Apps Script error",
-        status: r.status,
-        body: text.slice(0, 500)
-      });
-    }
-
-    if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
-      return res.status(502).json({
-        error: "Apps Script did not return JSON",
-        body: text.slice(0, 500)
+        error: `Apps Script HTTP ${r.status}`,
+        body: text.slice(0, 300)
       });
     }
 
     res.setHeader("Cache-Control", "no-store");
     res.type("application/json").send(text);
-
   } catch (e) {
-    res.status(500).json({
-      error: String(e)
-    });
+    res.status(500).json({ error: String(e) });
   }
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("Kitchen screen running on PORT =", PORT);
+  console.log("Courier screen running on PORT =", PORT);
 });
